@@ -1,23 +1,31 @@
 import React, {Component, PropTypes} from 'react';
-import {reduxForm} from 'redux-form';
+import {SubmissionError, reduxForm, Field} from 'redux-form';
 // import {show as showResults} from '../redux/modules/submission';
-export const fields = ['username', 'password'];
 
-const submit = (values, dispatch) => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (!['john', 'paul', 'george', 'ringo'].includes(values.username)) {
-        reject({username: 'User does not exist', _error: 'Login failed!'});
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+function submit(values) {
+  return sleep(1000) // simulate server latency
+    .then(() => {
+      if (![ 'john', 'paul', 'george', 'ringo' ].includes(values.username)) {
+        throw new SubmissionError({ username: 'User does not exist', _error: 'Login failed!' })
       } else if (values.password !== 'redux-form') {
-        reject({password: 'Wrong password', _error: 'Login failed!'});
+        throw new SubmissionError({ password: 'Wrong password', _error: 'Login failed!' })
       } else {
-        // dispatch(showResults(values));
-        console.log('SUCCESSFUL FORM')
-        resolve();
+        window.alert(`You submitted:\n\n${JSON.stringify(values, null, 2)}`)
       }
-    }, 1000); // simulate server latency
-  });
-};
+    })
+}
+
+const renderField = ({ input, label, type, meta: { touched, error } }) => (
+  <div>
+    <label>{label}</label>
+    <div>
+      <input {...input} placeholder={label} type={type}/>
+      {touched && error && <span>{error}</span>}
+    </div>
+  </div>
+)
 
 class SubmitValidationForm extends Component {
   constructor(props) {
@@ -25,45 +33,33 @@ class SubmitValidationForm extends Component {
   }
 
   render() {
-    const {fields: {username, password}, error, resetForm, handleSubmit, submitting} = this.props;
-    return (<form onSubmit={handleSubmit(submit)}>
+    const { error, handleSubmit } = this.props;
+    return (
+      <form onSubmit={handleSubmit}>
         <div>
-          <label>Username</label>
-          <div>
-            <input type="text" placeholder="Username" {...username}/>
-          </div>
-          {username.touched && username.error && <div>{username.error}</div>}
+          <label htmlFor="username">Username</label>
+          <Field
+            name="username"
+            component={renderField}
+            type="text"/>
         </div>
         <div>
-          <label>Password</label>
-          <div>
-            <input type="password" placeholder="Password" {...password}/>
-          </div>
-          {password.touched && password.error && <div>{password.error}</div>}
+          <label htmlFor="password">Password</label>
+          <Field
+            name="password"
+            component={renderField}
+            type="password"/>
         </div>
-        {error && <div>{error}</div>}
+        {error && <strong>{error}</strong>}
         <div>
-          <button type="submit" disabled={submitting}>
-            {submitting ? <i/> : <i/>} Log In
-          </button>
-          <button type="button" disabled={submitting} onClick={resetForm}>
-            Clear Values
-          </button>
+          <button type="submit">Log In</button>
         </div>
       </form>
     );
   }
 }
 
-SubmitValidationForm.propTypes = {
-    fields: PropTypes.object.isRequired,
-    handleSubmit: PropTypes.func.isRequired,
-    error: PropTypes.string,
-    resetForm: PropTypes.func.isRequired,
-    submitting: PropTypes.bool.isRequired
-};
-
 export default reduxForm({
   form: 'submitValidation',
-  fields
+  onSubmit: submit
 })(SubmitValidationForm);
